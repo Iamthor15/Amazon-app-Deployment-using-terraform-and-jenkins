@@ -1,22 +1,23 @@
-# Import provider configuration from provider.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# Configure the AWS Provider
 provider "aws" {
-  # No need to repeat region setting here; it's already defined in provider.tf
+  region = "us-east-1"
 }
 
-# Data source to fetch existing security group if it already exists
-data "aws_security_group" "existing_jenkins_sg" {
-  name   = "Jenkins-Security Group"
-  vpc_id = "vpc-09dfd48db83b18130"  # Replace with your VPC ID
-}
-
-# Create a new security group only if it doesn't already exist
+# Define AWS resources
 resource "aws_security_group" "Jenkins-sg" {
-  count = length(data.aws_security_group.existing_jenkins_sg.ids) == 0 ? 1 : 0  # Create only if not exists
-
   name        = "Jenkins-Security Group"
   description = "Open 22,443,80,8080,9000,9100,9090,3000"
 
-  # Define ingress rules
+  # Define a single ingress rule to allow traffic on all specified ports
   ingress = [
     for port in [22, 80, 443, 8080, 9000, 9100, 9090, 3000] : {
       description      = "TLS from VPC"
@@ -31,7 +32,6 @@ resource "aws_security_group" "Jenkins-sg" {
     }
   ]
 
-  # Define egress rules
   egress {
     from_port   = 0
     to_port     = 0
@@ -44,11 +44,10 @@ resource "aws_security_group" "Jenkins-sg" {
   }
 }
 
-# Create instances referencing the security group
 resource "aws_instance" "web" {
   ami                    = "ami-0c7217cdde317cfec"
   instance_type          = "t2.large"
-  key_name               = "my-key"  # Replace with your key pair name
+  key_name               = "my key"
   vpc_security_group_ids = [aws_security_group.Jenkins-sg.id]
   user_data              = templatefile("./install_jenkins.sh", {})
 
@@ -64,7 +63,7 @@ resource "aws_instance" "web" {
 resource "aws_instance" "web2" {
   ami                    = "ami-0c7217cdde317cfec"
   instance_type          = "t2.medium"
-  key_name               = "my-key"  # Replace with your key pair name
+  key_name               = "my key"
   vpc_security_group_ids = [aws_security_group.Jenkins-sg.id]
 
   tags = {
